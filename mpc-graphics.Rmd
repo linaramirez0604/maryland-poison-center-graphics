@@ -9,3 +9,171 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+My goal is to make a map of Maryland by county that is colored by some count or rate from the MPC data set I have created.  I would like to make this map for each year, 2006-2018, and then animate it to show changes over time.
+
+```{r}
+library(tidyverse)
+library(ggmap)
+library(maps)
+```
+
+First, read in the MPC data:
+```{r}
+mpcData <- read_csv("MPCdataFINAL.csv")
+names(mpcData)
+dim(mpcData)
+glimpse(mpcData)
+```
+
+Now just playing with making maps of Maryland:
+```{r}
+#making a plot of counties in maryland using the plotting within map package
+map('county', 'maryland', fill = TRUE, col = palette())
+
+#making a plot of counties in maryland using ggplot
+md <- map_data('county', 'maryland')
+dim(md)
+head(md)
+tail(md)
+
+# fill is black and county lines are in white
+ggplot() + 
+  geom_polygon(data = md, aes(x=long, y = lat, group = group)) + 
+  coord_fixed(1.3) + 
+  theme_bw()
+
+# no fill, red outline
+ggplot() + 
+  geom_polygon(data = md, aes(x=long, y = lat, group = group), fill="NA", color="red") + 
+  coord_fixed(1.3) + 
+  theme_bw()
+
+# orange fill, black outline, go orioles?
+ggplot() + 
+  geom_polygon(data = md, aes(x=long, y = lat, group = group), fill="orange", color="black") + 
+  coord_fixed(1.3) + 
+  theme_bw()
+
+# give each county a different color
+ggplot() + 
+  geom_polygon(data = md, aes(x=long, y = lat, fill=subregion, group = group), color="white") + 
+  coord_fixed(1.3) + 
+  theme_bw()
+
+# give each county a different color and remove color legend
+ggplot() + 
+  geom_polygon(data = md, aes(x=long, y = lat, fill=subregion, group = group), color="white") + 
+  coord_fixed(1.3) + 
+  theme_bw() + 
+  guides(fill=FALSE) 
+
+# get rid of gridlines
+ggplot() + 
+  geom_polygon(data = md, aes(x=long, y = lat, fill=subregion, group = group), color="white") + 
+  coord_fixed(1.3) + 
+  theme_nothing() + 
+  guides(fill=FALSE) 
+
+# add state outline in black
+state.md <- map_data('state', 'maryland')
+ggplot() + 
+  geom_polygon(data = md, aes(x=long, y = lat, fill=subregion, group = group), color="white") + 
+  geom_polygon(data = state.md, aes(x=long, y=lat, group=group), color="black", fill=NA) +
+  coord_fixed(1.3) + 
+  theme_nothing() + 
+  guides(fill=FALSE) 
+```
+
+Now going to try to color by the number of human exposures:
+```{r}
+mpc2018 <- mpcData %>%
+  filter(Year==2018) %>%
+  mutate(subregion=tolower(County))
+
+mpc2018$subregion
+unique(md$subregion)
+
+# need to remove the , md and the apostrophes
+mpc2018$subregion = str_replace_all(mpc2018$subregion,", md", "")
+mpc2018$subregion = str_replace_all(mpc2018$subregion," county", "")
+mpc2018$subregion = str_replace_all(mpc2018$subregion,"’", "")
+mpc2018$subregion = str_replace_all(mpc2018$subregion,"[.]", "")
+
+mpc2018$subregion
+unique(md$subregion)
+
+plotData <- inner_join(md, mpc2018, by="subregion")
+
+dim(plotData)
+dim(table(plotData$subregion))
+
+ggplot() + 
+  geom_polygon(data = plotData, aes(x=long, y = lat, fill=TotalHumanExposures, group = group), color="white") + 
+  geom_polygon(data = state.md, aes(x=long, y=lat, group=group), color="black", fill=NA) +
+  coord_fixed(1.3) + 
+  theme_bw()
+
+```
+
+These plots are pretty meaningless without turning them into a rate using the population, but first lets just make a fdw more:
+```{r}
+ggplot() + 
+  geom_polygon(data = plotData, aes(x=long, y = lat, fill=MedOutcome_Death, group = group), color="white") + 
+  geom_polygon(data = state.md, aes(x=long, y=lat, group=group), color="black", fill=NA) +
+  coord_fixed(1.3) + 
+  theme_bw()
+
+ggplot() + 
+  geom_polygon(data = plotData, aes(x=long, y = lat, fill=Intentional_SuspectedSuicide, group = group), color="white") + 
+  geom_polygon(data = state.md, aes(x=long, y=lat, group=group), color="black", fill=NA) +
+  coord_fixed(1.3) + 
+  theme_bw()
+
+ggplot() + 
+  geom_polygon(data = plotData, aes(x=long, y = lat, fill=Age_Under12mo, group = group), color="white") + 
+  geom_polygon(data = state.md, aes(x=long, y=lat, group=group), color="black", fill=NA) +
+  coord_fixed(1.3) + 
+  theme_bw()
+```
+
+First we can consider a scale change:
+```{r}
+ggplot() + 
+  geom_polygon(data = plotData, aes(x=long, y = lat, fill=Age_Under12mo, group = group), color="white") + 
+  geom_polygon(data = state.md, aes(x=long, y=lat, group=group), color="black", fill=NA) +
+  coord_fixed(1.3) + 
+  theme_bw() + scale_fill_gradient(trans="log10")
+```
+
+Now I need to find some population data by county:
+```{r}
+popData <- read_csv("./PEP_2018_PEPANNRES/PEP_2018_PEPANNRES.csv")
+glimpse(popData)
+
+pop2018 <- popData %>%
+  select(respop72018, `GEO.display-label`) %>%
+  mutate(subregion=tolower(`GEO.display-label`))
+
+unique(plotData$subregion)
+pop2018$subregion
+
+# need to remove the , md and the apostrophes
+pop2018$subregion = str_replace_all(pop2018$subregion,", maryland", "")
+pop2018$subregion = str_replace_all(pop2018$subregion," county", "")
+pop2018$subregion = str_replace_all(pop2018$subregion,"'", "")
+pop2018$subregion = str_replace_all(pop2018$subregion,"[.]", "")
+
+unique(plotData$subregion)
+pop2018$subregion
+
+plotData <- inner_join(plotData, pop2018, by="subregion")
+plotData <- plotData %>%
+  mutate(THEperCap=TotalHumanExposures/respop72018)
+
+ggplot() + 
+  geom_polygon(data = plotData, aes(x=long, y = lat, fill=THEperCap, group = group), color="white") + 
+  geom_polygon(data = state.md, aes(x=long, y=lat, group=group), color="black", fill=NA) +
+  coord_fixed(1.3) + 
+  theme_bw()
+
+```
