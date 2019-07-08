@@ -242,7 +242,7 @@ unique(plotData$Year)
 plotData <- inner_join(plotData, popLongData, by=c("subregion", "Year"))
 
 plotData <- plotData %>%
-  mutate(THEperCapThou=TotalHumanExposures/Population*1000)
+  mutate(THEperCapThou=TotalHumanExposures/Population*10000)
 
 ```
 
@@ -281,3 +281,61 @@ plotData %>%
   group_by(Year) %>%
   summarize(min=min(THEperCapThou), max=max(THEperCapThou))
 ```
+
+Let's look at something else:
+```{r}
+
+plotData <- plotData %>%
+  mutate(deathsPerThou = MedOutcome_Death/Population*100000)
+
+ggplot() + 
+  geom_polygon(data = plotData, aes(x=long, y = lat, fill=deathsPerThou, group = group), color="white") + 
+  geom_polygon(data = state.md, aes(x=long, y=lat, group=group), color="black", fill=NA) +
+  coord_fixed(1.3) + 
+  theme_bw() + facet_wrap(vars(Year))
+```
+
+
+Does there seem to be an overall trend over time?
+```{r}
+plotData %>%
+  group_by(Year) %>%
+  summarize(number=sum(MedOutcome_Death), pop=sum(Population), rate=number/pop*100000)
+```
+
+What's the range by state?
+```{r}
+plotData %>%
+  group_by(Year) %>%
+  summarize(min=min(deathsPerThou), max=max(deathsPerThou))
+```
+
+Let's look at something else: Intentional_Abuse
+```{r}
+
+plotData <- plotData %>%
+  mutate(abusePerThou = Intentional_Abuse/Population*1000)
+
+ggplot() + 
+  geom_polygon(data = plotData, aes(x=long, y = lat, fill=abusePerThou, group = group), color="white") + 
+  geom_polygon(data = state.md, aes(x=long, y=lat, group=group), color="black", fill=NA) +
+  coord_fixed(1.3) + 
+  theme_bw() + facet_wrap(vars(Year))
+```
+
+
+Does there seem to be an overall trend over time?
+```{r}
+plotData %>%
+  group_by(Year) %>%
+  summarize(number=sum(Intentional_Abuse), pop=sum(Population), rate=number/pop*1000)
+```
+
+What's the range by state?
+```{r}
+plotData %>%
+  group_by(Year) %>%
+  summarize(min=min(abusePerThou), max=max(deathsPerThou))
+```
+
+Want to look to rescaling somehow, as in that tutorial.
