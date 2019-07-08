@@ -177,3 +177,107 @@ ggplot() +
   theme_bw()
 
 ```
+
+Now to rescale to per 1000 persons
+```{r}
+plotData <- plotData %>%
+  mutate(THEperCapThou=TotalHumanExposures/respop72018*1000)
+
+ggplot() + 
+  geom_polygon(data = plotData, aes(x=long, y = lat, fill=THEperCapThou, group = group), color="white") + 
+  geom_polygon(data = state.md, aes(x=long, y=lat, group=group), color="black", fill=NA) +
+  coord_fixed(1.3) + 
+  theme_bw()
+
+```
+
+There doesn't seem to be anything that interesting when looking at total human exposures in 2018.  Can I look at what's happening over time?  I have population data from 2010-2018, so I am going to work with this!
+
+```{r}
+mpcPlotData <- mpcData %>%
+  filter(Year >= 2010) %>%
+  mutate(subregion=tolower(County))
+
+mpcPlotData$subregion
+unique(md$subregion)
+
+# need to remove the , md and the apostrophes
+mpcPlotData$subregion = str_replace_all(mpcPlotData$subregion,", md", "")
+mpcPlotData$subregion = str_replace_all(mpcPlotData$subregion," county", "")
+mpcPlotData$subregion = str_replace_all(mpcPlotData$subregion,"’", "")
+mpcPlotData$subregion = str_replace_all(mpcPlotData$subregion,"[.]", "")
+
+mpcPlotData$subregion
+unique(md$subregion)
+
+plotData <- inner_join(md, mpcPlotData, by="subregion")
+
+dim(plotData)
+dim(table(plotData$subregion))
+
+popData <- read_csv("./PEP_2018_PEPANNRES/PEP_2018_PEPANNRES.csv")
+glimpse(popData)
+
+popLongData <- popData %>%
+  select(`2010`=respop72010, `2011`=respop72011, `2012`=respop72012, `2013`=respop72013, `2014`=respop72014, `2015`=respop72015, `2016`=respop72016, `2017`=respop72017, `2018`=respop72018, subregion=`GEO.display-label`) %>%
+  mutate(subregion=tolower(subregion)) %>%
+  gather(Year, Population, `2010`:`2018`) %>%
+  mutate(Year=as.numeric(Year))
+
+unique(popLongData$subregion)
+unique(plotData$subregion)
+
+# need to remove the , md and the apostrophes
+popLongData$subregion = str_replace_all(popLongData$subregion,", maryland", "")
+popLongData$subregion = str_replace_all(popLongData$subregion," county", "")
+popLongData$subregion = str_replace_all(popLongData$subregion,"'", "")
+popLongData$subregion = str_replace_all(popLongData$subregion,"[.]", "")
+
+unique(popLongData$subregion)
+unique(plotData$subregion)
+
+unique(popLongData$Year)
+unique(plotData$Year)
+
+plotData <- inner_join(plotData, popLongData, by=c("subregion", "Year"))
+
+plotData <- plotData %>%
+  mutate(THEperCapThou=TotalHumanExposures/Population*1000)
+
+```
+
+First I will make the plots faceted:
+```{r}
+ggplot() + 
+  geom_polygon(data = plotData, aes(x=long, y = lat, fill=THEperCapThou, group = group), color="white") + 
+  geom_polygon(data = state.md, aes(x=long, y=lat, group=group), color="black", fill=NA) +
+  coord_fixed(1.3) + 
+  theme_bw() + facet_wrap(vars(Year))
+```
+
+Going to remove the PG and M counties, since they don't have accurate counts because some (most?) of their calls are rounted to Poison Center in DC.  Will this be straightforward to do?
+
+```{r}
+plotData <- plotData %>% 
+  filter(subregion!="montgomery" & subregion!="prince georges")
+
+ggplot() + 
+  geom_polygon(data = plotData, aes(x=long, y = lat, fill=THEperCapThou, group = group), color="white") + 
+  geom_polygon(data = state.md, aes(x=long, y=lat, group=group), color="black", fill=NA) +
+  coord_fixed(1.3) + 
+  theme_bw() + facet_wrap(vars(Year))
+```
+
+Does there seem to be an overall trend over time?
+```{r}
+plotData %>%
+  group_by(Year) %>%
+  summarize(number=sum(TotalHumanExposures), pop=sum(Population), rate=number/pop*1000)
+```
+
+What's the range by state?
+```{r}
+plotData %>%
+  group_by(Year) %>%
+  summarize(min=min(THEperCapThou), max=max(THEperCapThou))
+```
