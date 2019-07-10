@@ -112,3 +112,9 @@ mapGIF <- animate(animatedMap)
 # display gif
 mapGIF
 ```
+
+Write the gif image to a file using `anim_save()`:
+```{r}
+anim_save("MPCmap.gif", animation=mapGIF)
+```
+
