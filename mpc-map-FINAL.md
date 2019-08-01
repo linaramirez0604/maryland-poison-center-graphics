@@ -1,36 +1,19 @@
----
-title: "Map of human exposure rate, by county, over time for calls to Maryland Poison Center"
-author: "Leah Jager"
-date: "7/9/2019"
-output:
-  github_document: default
----
+Map of human exposure rate, by county, over time for calls to Maryland Poison Center
+================
+Leah Jager
+7/9/2019
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
-```
+This code produces an animated map of Maryland by county that is colored by the human exposure rate (in exposures per 10,000 individuals) as reported to the Maryland Poison Center. This map is animated over time, from 2010 - 2018. Data for Prince George's and Montgomery Counties are excluded since complete data from these counties requires consideration of calls to the National Capitol Poison Center as well.
 
-This code produces an animated map of Maryland by county that is colored by the human exposure rate (in exposures per 10,000 individuals) as reported to the Maryland Poison Center.  This map is animated over time, from 2010 - 2018.  Data for Prince George's and Montgomery Counties are excluded since complete data from these counties requires consideration of calls to the National Capitol Poison Center as well.
+Data sources:
 
-Data sources: 
-
-(1) [Maryland Poison Center](https://www.mdpoison.com/) data that has been collected and cleaned by me (this data can be found [here](https://github.com/lrjager/maryland-poison-center-data/blob/master/MPCdataFINAL.csv))
-(2) U.S. Census Bureau, Population Division, with estimates of the resident population by county (this data can be found [here](https://github.com/lrjager/maryland-poison-center-graphics/tree/master/PEP_2018_PEPANNRES)). 
-      * *U.S. Census data citation:* Annual Estimates of the Resident Population: April 1, 2010 to July 1, 2018, Source: U.S. Census Bureau, Population Division, Release Dates: For the United States, regions, divisions, states, and Puerto Rico Commonwealth, December 2018. For counties, municipios, metropolitan statistical areas, micropolitan statistical areas, metropolitan divisions, and combined statistical areas, April 2019. For cities and towns (incorporated places and minor civil divisions), May 2019.
-
-
-```{r include=FALSE}
-library(tidyverse)
-library(ggmap)
-library(maps)
-library(gganimate)
-library(gifski)
-library(transformr)  # to use polygons in animation
-```
+1.  [Maryland Poison Center](https://www.mdpoison.com/) data that has been collected and cleaned by me (this data can be found [here](https://github.com/lrjager/maryland-poison-center-data/blob/master/MPCdataFINAL.csv))
+2.  U.S. Census Bureau, Population Division, with estimates of the resident population by county (this data can be found [here](https://github.com/lrjager/maryland-poison-center-graphics/tree/master/PEP_2018_PEPANNRES)).
+    -   *U.S. Census data citation:* Annual Estimates of the Resident Population: April 1, 2010 to July 1, 2018, Source: U.S. Census Bureau, Population Division, Release Dates: For the United States, regions, divisions, states, and Puerto Rico Commonwealth, December 2018. For counties, municipios, metropolitan statistical areas, micropolitan statistical areas, metropolitan divisions, and combined statistical areas, April 2019. For cities and towns (incorporated places and minor civil divisions), May 2019.
 
 Reading in the data, accessing the map data, filtering to 2010-2018, and joining data sets together:
 
-```{r}
+``` r
 ### MPC data
 mpcData <- read_csv("MPCdataFINAL.csv")
 ### md county line map definition data
@@ -71,7 +54,7 @@ plotData <- inner_join(plotData, popLongData, by=c("subregion", "Year"))
 
 Creating the exposure rate variable, excluding PG and Montgomery counties:
 
-```{r}
+``` r
 # create THE per 10,000 rate variable
 plotData <- plotData %>%
   mutate(theRate=TotalHumanExposures/Population*10000)
@@ -79,12 +62,11 @@ plotData <- plotData %>%
 # give PG and Mont counties a NA for "theRate" variable, so they will show as grey
 plotData <- plotData %>%
   mutate(theRate=ifelse(subregion=="prince georges" | subregion=="montgomery", NA,TotalHumanExposures/Population*10000))
-
 ```
 
 Making the animation:
 
-```{r}
+``` r
 # to get text of year to show in middle of plot
 plotData <- plotData %>%
   mutate(xloc=-78.5, yloc=38.75)
@@ -114,8 +96,10 @@ mapGIF <- animate(animatedMap)
 mapGIF
 ```
 
+![](mpc-map-FINAL_files/figure-markdown_github/unnamed-chunk-4-1.gif)
+
 Write the gif image to a file using `anim_save()`:
-```{r}
+
+``` r
 anim_save("MPCmap.gif", animation=mapGIF)
 ```
-
