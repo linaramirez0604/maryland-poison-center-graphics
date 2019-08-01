@@ -3,7 +3,6 @@ title: "Map of human exposure rate, by county, over time for calls to Maryland P
 author: "Leah Jager"
 date: "7/9/2019"
 output:
-  html_document: default
   github_document: default
 ---
 
